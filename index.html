@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>DIVE-LD Speed/Time/Distance Calculator</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #d4d4aa;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #9acd32;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #c0c090;
+        }
+
+        input[type="number"], input[type="text"], input[type="range"] {
+            background-color: #2f2f2f;
+            color: #d4d4aa;
+            border: 1px solid #6b8e23;
+            padding: 5px;
+            margin: 5px 0;
+            width: 100%;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .section {
+            background-color: #2b2b2b;
+            border: 1px solid #556b2f;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .output {
+            font-size: 1.2em;
+            color: #98fb98;
+        }
+
+        .coordinates {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .coordinates div {
+            background-color: #333;
+            padding: 10px;
+            border: 1px solid #4b5320;
+        }
+
+        .footer {
+            font-size: 0.9em;
+            color: #aaa;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .time-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .time-inputs label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+<h1>DIVE-LD Speed/Time/Distance Calculator</h1>
+
+<div id="logoContainer" style="display: flex; justify-content: center; align-items: center; margin: 20px 0;">
+    <img alt="Anduril Logo" id="logoImg" src="https://cdn.sanity.io/images/z5s3oquj/production/00cb42ea9eeb05ec05b6682ed66708a9012dc195-2000x1634.png?auto=format&fit=max&w=1920&q=90"
+         style="max-width: 200px; cursor: pointer;" />
+    <canvas id="radarCanvas" width="200" height="200" style="display: none;"></canvas>
+</div>
+<script>
+    const logoImg = document.getElementById("logoImg");
+    const radarCanvas = document.getElementById("radarCanvas");
+    const ctx = radarCanvas.getContext("2d");
+
+    let radarActive = false;
+    let angle = 0;
+    let radarLoop = null;
+
+    function drawRadar() {
+        ctx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
+
+        ctx.beginPath();
+        ctx.arc(100, 100, 95, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#9acd32';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(100, 100);
+        const sweepX = 100 + 95 * Math.cos(angle);
+        const sweepY = 100 + 95 * Math.sin(angle);
+        ctx.lineTo(sweepX, sweepY);
+        ctx.strokeStyle = '#32cd32';
+        ctx.stroke();
+
+        for (let i = 0; i < 5; i++) {
+            const randAngle = Math.random() * 2 * Math.PI;
+            const radius = Math.random() * 90;
+            const x = 100 + radius * Math.cos(randAngle);
+            const y = 100 + radius * Math.sin(randAngle);
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(x, y, 2, 2);
+        }
+
+        angle += 0.05;
+        radarLoop = requestAnimationFrame(drawRadar);
+    }
+
+    logoImg.addEventListener("click", () => {
+        radarActive = true;
+        logoImg.style.display = "none";
+        radarCanvas.style.display = "block";
+        drawRadar();
+    });
+
+    radarCanvas.addEventListener("click", () => {
+        radarActive = false;
+        radarCanvas.style.display = "none";
+        logoImg.style.display = "block";
+        cancelAnimationFrame(radarLoop);
+    });
+</script>
+
+
+
+
+<div>
+    <label for="speedSlider">Speed (m/s): <span id="speedValue">0.00</span></label><br/>
+    <input id="speedSlider" max="3" min="0" step="0.05" type="range" value="0"/>
+    <div>Speed in knots: <span id="speedKnots">0.00</span></div>
+</div>
+
+<div class="time-inputs">
+    <label>Seconds
+        <input id="timeSeconds" type="number"/>
+    </label>
+    <label>Minutes
+        <input id="timeMinutes" type="number"/>
+    </label>
+    <label>Hours
+        <input id="timeHours" type="number"/>
+    </label>
+</div>
+
+<div>
+    <label for="distance">Distance (meters):</label>
+    <input id="distance" step="0.01" type="number"/>
+    <div>Miles: <span id="distanceMiles">0.00</span></div>
+    <div>Nautical Miles: <span id="distanceNautical">0.00</span></div>
+</div>
+
+<div style="height: 40px;"></div>
+
+<!-- Speed Estimator Section -->
+<div class="section" style="max-width: 800px; margin: 0 auto; text-align: center;">
+    <h2>Speed Estimator</h2>
+    <label for="rpmInput">Input RPM:</label>
+    <input id="rpmInput" type="number" step="1" min="0" placeholder="Enter RPM" />
+
+    <div style="margin-top: 10px;">
+        <div>Estimated Speed (m/s): <span id="estimatedSpeedMS">0.00</span></div>
+        <div>Estimated Speed (knots): <span id="estimatedSpeedKnots">0.00</span></div>
+    </div>
+
+    <p style="margin-top: 10px; font-style: italic; color: #aaa;">
+        Disclaimer: These speeds are only estimates for reference only. Actual speed will be dependent on external factors (i.e. environmental conditions etc.)
+    </p>
+</div>
+
+
+<h2>Coordinate Conversions</h2>
+<div style="margin: 20px 0;">
+    <h3>Decimal Degrees</h3>
+    <label>Latitude:
+        <input id="latDecimal" step="0.00001" type="number"/>
+    </label><br/><br/>
+    <label>Longitude:
+        <input id="lonDecimal" step="0.00001" type="number"/>
+    </label><br/><br/>
+    <h3>Degrees and Decimal Minutes</h3>
+    <label>Latitude Degrees:
+        <input id="latDeg" type="number"/>
+    </label>
+    <label>Latitude Minutes:
+        <input id="latMin" step="0.0001" type="number"/>
+    </label><br/><br/>
+    <label>Longitude Degrees:
+        <input id="lonDeg" type="number"/>
+    </label>
+    <label>Longitude Minutes:
+        <input id="lonMin" step="0.0001" type="number"/>
+    </label>
+</div>
+
+<script>
+    const speedSlider = document.getElementById("speedSlider");
+    const speedValue = document.getElementById("speedValue");
+    const speedKnots = document.getElementById("speedKnots");
+
+    const timeHours = document.getElementById("timeHours");
+    const timeMinutes = document.getElementById("timeMinutes");
+    const timeSeconds = document.getElementById("timeSeconds");
+
+    const distanceInput = document.getElementById("distance");
+    const distanceMiles = document.getElementById("distanceMiles");
+    const distanceNautical = document.getElementById("distanceNautical");
+
+    speedSlider.addEventListener("input", () => {
+        const speed = parseFloat(speedSlider.value);
+        speedValue.textContent = speed.toFixed(2);
+        speedKnots.textContent = (speed * 1.94384).toFixed(2);
+        updateDistance();
+    });
+
+    function getTotalTimeInSeconds() {
+        return parseFloat(timeSeconds.value) || 0;
+    }
+
+    function updateDistance() {
+        const speed = parseFloat(speedSlider.value);
+        const totalSeconds = getTotalTimeInSeconds();
+        const distance = speed * totalSeconds;
+        distanceInput.value = distance.toFixed(2);
+        distanceMiles.textContent = (distance / 1609.34).toFixed(2);
+        distanceNautical.textContent = (distance / 1852).toFixed(2);
+    }
+
+    function updateTimeInputs(e) {
+        const source = e.target.id;
+        const val = parseFloat(e.target.value);
+        if (isNaN(val)) return;
+
+        let totalSeconds = 0;
+        if (source === "timeHours") totalSeconds = val * 3600;
+        else if (source === "timeMinutes") totalSeconds = val * 60;
+        else if (source === "timeSeconds") totalSeconds = val;
+
+        timeHours.value = (totalSeconds / 3600).toFixed(4);
+        timeMinutes.value = (totalSeconds / 60).toFixed(4);
+        timeSeconds.value = totalSeconds.toFixed(2);
+
+        updateDistance();
+    }
+
+    timeSeconds.addEventListener("change", updateTimeInputs);
+    timeMinutes.addEventListener("change", updateTimeInputs);
+    timeHours.addEventListener("change", updateTimeInputs);
+
+    distanceInput.addEventListener("change", () => {
+        const updateDistanceConversions = () => {
+            const distance = parseFloat(distanceInput.value);
+            distanceMiles.textContent = (distance / 1609.34).toFixed(2);
+            distanceNautical.textContent = (distance / 1852).toFixed(2);
+        };
+        updateDistanceConversions();
+        const speed = parseFloat(speedSlider.value);
+        const distance = parseFloat(distanceInput.value);
+
+        if (isNaN(speed) || speed === 0 || isNaN(distance)) return;
+
+        const totalSeconds = distance / speed;
+
+        timeSeconds.value = totalSeconds.toFixed(2);
+        timeMinutes.value = (totalSeconds / 60).toFixed(4);
+        timeHours.value = (totalSeconds / 3600).toFixed(4);
+    });
+
+    function toDecimalDegrees(deg, min) {
+        return parseFloat(deg) + (parseFloat(min) / 60);
+    }
+
+    function toDegMin(decimal) {
+        const deg = Math.trunc(decimal);
+        const min = Math.abs((decimal - deg) * 60);
+        return [deg, min];
+    }
+
+    function syncFromDecimal() {
+        const lat = parseFloat(document.getElementById("latDecimal").value);
+        const lon = parseFloat(document.getElementById("lonDecimal").value);
+
+        if (!isNaN(lat)) {
+            const [deg, min] = toDegMin(lat);
+            document.getElementById("latDeg").value = deg;
+            document.getElementById("latMin").value = min.toFixed(4);
+        }
+
+        if (!isNaN(lon)) {
+            const [deg, min] = toDegMin(lon);
+            document.getElementById("lonDeg").value = deg;
+            document.getElementById("lonMin").value = min.toFixed(4);
+        }
+    }
+
+    function syncFromDegMin() {
+        const latDeg = parseFloat(document.getElementById("latDeg").value);
+        const latMin = parseFloat(document.getElementById("latMin").value);
+        const lonDeg = parseFloat(document.getElementById("lonDeg").value);
+        const lonMin = parseFloat(document.getElementById("lonMin").value);
+
+        if (!isNaN(latDeg) && !isNaN(latMin)) {
+            document.getElementById("latDecimal").value = toDecimalDegrees(latDeg, latMin).toFixed(5);
+        }
+
+        if (!isNaN(lonDeg) && !isNaN(lonMin)) {
+            document.getElementById("lonDecimal").value = toDecimalDegrees(lonDeg, lonMin).toFixed(5);
+        }
+    }
+
+    document.getElementById("latDecimal").addEventListener("input", syncFromDecimal);
+    document.getElementById("lonDecimal").addEventListener("input", syncFromDecimal);
+    document.getElementById("latDeg").addEventListener("input", syncFromDegMin);
+    document.getElementById("latMin").addEventListener("input", syncFromDegMin);
+    document.getElementById("lonDeg").addEventListener("input", syncFromDegMin);
+    document.getElementById("lonMin").addEventListener("input", syncFromDegMin);
+</script>
+
+<div class="footer">
+    <img src="https://upload.wikimedia.org/wikipedia/en/a/a4/Flag_of_the_United_States.svg"
+         alt="American Flag" style="width:150px; margin-bottom: 10px;">
+    <p style="font-style: italic; color: #d4d4aa;">
+        "The more you sweat in peace, the less you bleed in war." — General Norman Schwarzkopf
+    </p>
+</div>
+
+<div class="footer" style="margin-top: 40px;">
+    <h3 style="color: #9acd32;">User Reviews</h3>
+    <div style="margin-top: 20px;">
+        <p style="font-style: italic;">"This tool has become a part of our daily kit. Reliable and intuitive."</p>
+        <p>- Actual DIVE-LD End User</p>
+    </div>
+    <div style="margin-top: 20px;">
+        <p style="font-style: italic;">"It cuts down mission prep time drastically. Big win for the team."</p>
+        <p>- Actual DIVE-LD End User</p>
+    </div>
+    <div style="margin-top: 20px;">
+        <p style="font-style: italic;">"Built for operators by someone who clearly understands the need."</p>
+        <p>- Actual DIVE-LD End User</p>
+    </div>
+    <div style="margin-top: 20px;">
+        <p style="font-style: italic;">"Rugged UI, lightning fast outputs — exactly what we asked for."</p>
+        <p>- Actual DIVE-LD End User</p>
+    </div>
+</div>
+</div>
+
+
+<div style="margin-top: 40px; text-align: center;">
+    <label for="secretInput" style="color: #9acd32; font-weight: bold;">Top Secret Input</label><br/>
+    <input type="password" id="secretInput" placeholder="Enter code..."
+           style="background-color: #2f2f2f; color: #d4d4aa; border: 1px solid #6b8e23; padding: 5px; margin-top: 10px; width: 200px; text-align: center;" />
+    <p id="secretMessage" style="color: red; display: none; margin-top: 10px;">Access Denied</p>
+</div>
+
+<div id="droneGameWrapper" style="position: relative; width: 400px; margin: 30px auto; display: none;">
+    <canvas id="droneGame" width="400" height="400" style="background: linear-gradient(to bottom, #001f3f, #0074cc); border: 2px solid #9acd32;"></canvas>
+    <div id="closeDroneGame"
+         style="position: absolute; top: -12px; right: -12px; background: #9acd32; color: black;
+                border-radius: 50%; width: 24px; height: 24px; text-align: center; line-height: 24px;
+                font-weight: bold; cursor: pointer;">X</div>
+    <div style="margin-top: 10px; color: #9acd32; text-align: center;">
+        Difficulty:
+        <select id="difficultySelect" style="background:#222; color:#9acd32; border:1px solid #9acd32;">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+            <option value="canniff">Canniff</option>
+        </select>
+    </div>
+    <div style="margin-top: 10px; color: #9acd32; text-align: center;">
+        Time Limit:
+        <select id="timeLimitSelect" style="background:#222; color:#9acd32; border:1px solid #9acd32;">
+            <option value="60">1 Minute</option>
+            <option value="90">1.5 Minutes</option>
+            <option value="120" selected>2 Minutes</option>
+            <option value="180">3 Minutes</option>
+        </select>
+    </div>
+    <div id="timerDisplay"
+         style="margin-top: 10px; color: #9acd32; font-weight: bold; text-align: center; font-family: monospace;">
+        Time Remaining: <span id="timeLeft">120</span> sec
+    </div>
+</div>
+
+<script>
+    const droneGame = document.getElementById("droneGame");
+    const droneGameWrapper = document.getElementById("droneGameWrapper");
+    const ctxGame = droneGame.getContext("2d");
+    const closeBtn = document.getElementById("closeDroneGame");
+    const timeDisplay = document.getElementById("timeLeft");
+    const difficultySelect = document.getElementById("difficultySelect");
+
+    let keysPressed = [];
+    const unlockCode = ["ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowRight"];
+
+    let drone = { x: 200, y: 350, size: 10, speed: 2 };
+    let gameActive = false;
+    let heldKeys = {};
+    let animationId = null;
+    let timerInterval = null;
+    let timeRemaining = parseInt(document.getElementById("timeLimitSelect").value);
+    let gameDelayTimeout = null;
+
+    let obstacles = [];
+    let obstacleSpeed = 2;
+    let obstacleFrequency = 0.03;
+    let allowObstacles = false;
+
+    const difficultySettings = {
+        easy:    { speed: 2, frequency: 0.01 },
+        medium:  { speed: 3, frequency: 0.02 },
+        hard:    { speed: 4, frequency: 0.04 },
+        canniff: { speed: 6, frequency: 0.07 }
+    };
+
+    function generateObstacle() {
+        const width = Math.random() * 60 + 20;
+        const x = Math.random() * (400 - width);
+        obstacles.push({ x, y: -10, w: width, h: 10 });
+    }
+
+    function drawObstacles() {
+        ctxGame.fillStyle = "#ff0000";
+        obstacles.forEach(obs => {
+            ctxGame.fillRect(obs.x, obs.y, obs.w, obs.h);
+        });
+    }
+
+    function updateObstacles() {
+        if (!allowObstacles) return;
+
+        for (let obs of obstacles) {
+            obs.y += obstacleSpeed;
+        }
+        obstacles = obstacles.filter(obs => obs.y < 400);
+        if (Math.random() < obstacleFrequency) {
+            generateObstacle();
+        }
+    }
+
+    function checkCollision(rect1, rect2) {
+        return (
+            rect1.x < rect2.x + rect2.w &&
+            rect1.x + rect1.size > rect2.x &&
+            rect1.y < rect2.y + rect2.h &&
+            rect1.y + rect1.size > rect2.y
+        );
+    }
+
+    function drawDrone() {
+        ctxGame.clearRect(0, 0, 400, 400);
+        drawObstacles();
+        
+    ctxGame.beginPath();
+    ctxGame.ellipse(drone.x + drone.size / 2, drone.y + drone.size / 2, 4, 8, 0, 0, 2 * Math.PI);
+    ctxGame.fillStyle = "#aaa";
+    ctxGame.fill();
+    
+    }
+
+    function moveDrone() {
+        if (!gameActive) return;
+
+        let tempX = drone.x;
+        let tempY = drone.y;
+
+        if (heldKeys["ArrowUp"]) tempY -= drone.speed;
+        if (heldKeys["ArrowDown"]) tempY += drone.speed;
+        if (heldKeys["ArrowLeft"]) tempX -= drone.speed;
+        if (heldKeys["ArrowRight"]) tempX += drone.speed;
+
+        const testDrone = { x: tempX, y: tempY, size: drone.size };
+        const hit = obstacles.some(obs => checkCollision(testDrone, obs));
+
+        if (hit) {
+            alert("DIVE-LD hit something! Mission Failed. Try Again.");
+            restartGame();
+            return;
+        }
+
+        drone.x = Math.max(0, Math.min(400 - drone.size, tempX));
+        drone.y = Math.max(0, Math.min(400 - drone.size, tempY));
+
+        updateObstacles();
+        drawDrone();
+
+        animationId = requestAnimationFrame(moveDrone);
+    }
+
+    function startCountdown() {
+        timeRemaining = parseInt(document.getElementById("timeLimitSelect").value);
+        timeDisplay.textContent = timeRemaining;
+
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            timeDisplay.textContent = timeRemaining;
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                cancelAnimationFrame(animationId);
+                alert("Success! You are a Master DIVE-LD Operator. Go Team!");
+                closeDroneGame();
+            }
+        }, 1000);
+    }
+
+    function applyDifficulty(level) {
+        const settings = difficultySettings[level];
+        obstacleSpeed = settings.speed;
+        obstacleFrequency = settings.frequency;
+    }
+
+    function restartGame() {
+        clearInterval(timerInterval);
+        cancelAnimationFrame(animationId);
+        clearTimeout(gameDelayTimeout);
+        showDroneGame();
+    }
+
+    function showDroneGame() {
+        function showStartMessage() {
+            ctxGame.fillStyle = "#111";
+            ctxGame.fillRect(0, 0, 400, 400);
+            ctxGame.fillStyle = "#9acd32";
+            ctxGame.font = "bold 16px Courier New";
+            ctxGame.textAlign = "center";
+            ctxGame.fillText("Navigate the DIVE-LD to the target safely", 200, 200);
+        }
+    
+        gameActive = true;
+        drone.x = 200;
+        drone.y = 350;
+        heldKeys = {};
+        obstacles = [];
+        allowObstacles = false;
+        applyDifficulty(difficultySelect.value);
+        droneGameWrapper.style.display = "block";
+        drawDrone();
+        startCountdown();
+
+        showStartMessage();
+        gameDelayTimeout = setTimeout(() => {
+            allowObstacles = true;
+            moveDrone();
+        }, 2000); // 2 second delay before obstacles move
+    }
+
+    function closeDroneGame() {
+        gameActive = false;
+        droneGameWrapper.style.display = "none";
+        cancelAnimationFrame(animationId);
+        clearInterval(timerInterval);
+        clearTimeout(gameDelayTimeout);
+    }
+
+    closeBtn.addEventListener("click", closeDroneGame);
+    difficultySelect.addEventListener("change", restartGame);
+    document.getElementById("timeLimitSelect").addEventListener("change", restartGame);
+
+    document.addEventListener("keydown", (e) => {
+        if (gameActive && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+            e.preventDefault();
+        }
+
+        heldKeys[e.key] = true;
+
+        keysPressed.push(e.key);
+        if (keysPressed.length > unlockCode.length) {
+            keysPressed.shift();
+        }
+
+        if (keysPressed.join() === unlockCode.join()) {
+            showDroneGame();
+        }
+    });
+
+    document.addEventListener("keyup", (e) => {
+        heldKeys[e.key] = false;
+    });
+</script>
+
+
+<script>
+document.getElementById("secretInput").addEventListener("keyup", (e) => {
+    const input = e.target.value.toLowerCase().trim();
+    const errorMsg = document.getElementById("secretMessage");
+
+    if (input === "diveld") {
+        errorMsg.style.display = "none";
+        showDroneGame();
+        e.target.value = "";
+    } else if (input.length >= 6) {
+        errorMsg.style.display = "block";
+    } else {
+        errorMsg.style.display = "none";
+    }
+});
+</script>
+
+
+<!-- Splash Screen -->
+<div id="splashScreen" style="
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background-color: black;
+    color: #32cd32;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 1s ease;
+">
+    <div>Initializing Tactical UI...</div>
+</div>
+
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        const splash = document.getElementById("splashScreen");
+        if (splash) {
+            splash.style.opacity = "0";
+            setTimeout(() => splash.style.display = "none", 1000);
+        }
+    }, 3000); // Show for 3 seconds
+});
+</script>
+
+
+<script>
+    const rpmInput = document.getElementById("rpmInput");
+    const estimatedSpeedMS = document.getElementById("estimatedSpeedMS");
+    const estimatedSpeedKnots = document.getElementById("estimatedSpeedKnots");
+
+    rpmInput.addEventListener("input", () => {
+        const rpm = parseFloat(rpmInput.value);
+        if (isNaN(rpm)) {
+            estimatedSpeedMS.textContent = "0.00";
+            estimatedSpeedKnots.textContent = "0.00";
+            return;
+        }
+
+        // Equation: Speed (knots) = 0.008 × RPM - 0.1
+        const speedKnots = (0.008 * rpm - 0.1);
+        const speedMS = speedKnots * 0.514444;
+
+        estimatedSpeedKnots.textContent = speedKnots > 0 ? speedKnots.toFixed(2) : "0.00";
+        estimatedSpeedMS.textContent = speedKnots > 0 ? speedMS.toFixed(2) : "0.00";
+    });
+</script>
+
+</body>
+</html>
